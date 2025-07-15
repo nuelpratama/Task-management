@@ -70,7 +70,7 @@ graph TD
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/taskflow-pro.git
+git clone https://github.com/nuelpratama/Task-management.git
 ```
 
 2. Open in your preferred browser:
