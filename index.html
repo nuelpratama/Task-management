@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow | Modern Task Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .task-card {
+            transition: all 0.2s ease;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .drop-zone {
+            min-height: 200px;
+            transition: background-color 0.3s ease;
+        }
+        .drop-zone.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+        }
+        .modal {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .modal.hidden {
+            opacity: 0;
+            transform: translateY(-20px);
+            pointer-events: none;
+        }
+        .priority-high {
+            border-left: 4px solid #ef4444;
+        }
+        .priority-medium {
+            border-left: 4px solid #f59e0b;
+        }
+        .priority-low {
+            border-left: 4px solid #10b981;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 modal hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800" id="authModalTitle">Login</h2>
+                <button id="closeAuthModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="authForms">
+                <!-- Login Form -->
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label for="loginEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="loginEmail" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="loginPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="loginPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Login
+                        </button>
+                    </div>
+                    <div class="text-center text-sm text-gray-600">
+                        Don't have an account? <button type="button" id="showRegister" class="text-blue-600 hover:text-blue-500 font-medium">Register</button>
+                    </div>
+                </form>
+                
+                <!-- Register Form -->
+                <form id="registerForm" class="space-y-4 hidden">
+                    <div>
+                        <label for="registerName" class="block text-sm font-medium text-gray-700">Full Name</label>
+                        <input type="text" id="registerName" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="registerEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="registerEmail" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="registerPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="registerPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="registerConfirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                        <input type="password" id="registerConfirmPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Register
+                        </button>
+                    </div>
+                    <div class="text-center text-sm text-gray-600">
+                        Already have an account? <button type="button" id="showLogin" class="text-blue-600 hover:text-blue-500 font-medium">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="taskModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 modal hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800" id="taskModalTitle">Add New Task</h2>
+                <button id="closeTaskModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="taskForm" class="space-y-4">
+                <input type="hidden" id="taskId">
+                <div>
+                    <label for="taskTitle" class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" id="taskTitle" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="taskDescription" class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="taskDescription" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="taskPriority" class="block text-sm font-medium text-gray-700">Priority</label>
+                        <select id="taskPriority" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="taskDueDate" class="block text-sm font-medium text-gray-700">Due Date</label>
+                        <input type="date" id="taskDueDate" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="taskStatus" class="block text-sm font-medium text-gray-700">Status</label>
+                    <select id="taskStatus" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="todo">To Do</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="done">Done</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="taskLabels" class="block text-sm font-medium text-gray-700">Labels (comma separated)</label>
+                    <input type="text" id="taskLabels" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="work, personal, urgent">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelTask" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                        <i class="fas fa-tasks text-white"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-900">TaskFlow</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <button id="filterButton" class="flex items-center space-x-1 text-gray-600 hover:text-gray-900">
+                            <i class="fas fa-filter"></i>
+                            <span>Filter</span>
+                        </button>
+                        <div id="filterDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden">
+                            <div class="px-4 py-2 text-sm text-gray-700 border-b">Filter by Status</div>
+                            <div class="px-4 py-2">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" class="status-filter" value="todo" checked>
+                                    <span>To Do</span>
+                                </label>
+                            </div>
+                            <div class="px-4 py-2">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" class="status-filter" value="in-progress" checked>
+                                    <span>In Progress</span>
+                                </label>
+                            </div>
+                            <div class="px-4 py-2">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" class="status-filter" value="done" checked>
+                                    <span>Done</span>
+                                </label>
+                            </div>
+                            <div class="px-4 py-2 text-sm text-gray-700 border-t">Filter by Priority</div>
+                            <div class="px-4 py-2">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" class="priority-filter" value="high" checked>
+                                    <span>High</span>
+                                </label>
+                            </div>
+                            <div class="px-4 py-2">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" class="priority-filter" value="medium" checked>
+                                    <span>Medium</span>
+                                </label>
+                            </div>
+                            <div class="px-4 py-2">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" class="priority-filter" value="low" checked>
+                                    <span>Low</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="addTaskButton" class="flex items-center space-x-1 bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Task</span>
+                    </button>
+                    <div class="relative">
+                        <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none">
+                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                <i class="fas fa-user text-gray-600"></i>
+                            </div>
+                            <span class="text-gray-700">Guest</span>
+                        </button>
+                        <div id="userMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden">
+                            <div id="authButtons" class="px-4 py-2">
+                                <button id="loginButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Login</button>
+                                <button id="registerButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Register</button>
+                            </div>
+                            <div id="userActions" class="hidden px-4 py-2 border-t">
+                                <button id="logoutButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Stats Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Total Tasks</p>
+                            <p id="totalTasks" class="text-2xl font-semibold text-gray-900">0</p>
+                        </div>
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">In Progress</p>
+                            <p id="inProgressTasks" class="text-2xl font-semibold text-gray-900">0</p>
+                        </div>
+                        <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                            <i class="fas fa-spinner"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Completed</p>
+                            <p id="completedTasks" class="text-2xl font-semibold text-gray-900">0</p>
+                        </div>
+                        <div class="p-3 rounded-full bg-green-100 text-green-600">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Board -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- To Do Column -->
+                <div class="bg-gray-50 rounded-lg shadow overflow-hidden">
+                    <div class="bg-gray-100 px-4 py-3 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                            <span class="w-3 h-3 bg-gray-400 rounded-full mr-2"></span>
+                            To Do
+                            <span id="todoCount" class="ml-auto bg-gray-200 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">0</span>
+                        </h3>
+                    </div>
+                    <div id="todoTasks" class="drop-zone p-4 min-h-[200px]" data-status="todo">
+                        <div class="text-center text-gray-500 py-8" id="emptyTodo">
+                            <i class="fas fa-tasks text-3xl mb-2"></i>
+                            <p>No tasks here yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- In Progress Column -->
+                <div class="bg-gray-50 rounded-lg shadow overflow-hidden">
+                    <div class="bg-blue-50 px-4 py-3 border-b border-blue-200">
+                        <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                            <span class="w-3 h-3 bg-blue-400 rounded-full mr-2"></span>
+                            In Progress
+                            <span id="inProgressCount" class="ml-auto bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">0</span>
+                        </h3>
+                    </div>
+                    <div id="inProgressTasksCol" class="drop-zone p-4 min-h-[200px]" data-status="in-progress">
+                        <div class="text-center text-gray-500 py-8" id="emptyInProgress">
+                            <i class="fas fa-spinner text-3xl mb-2"></i>
+                            <p>No tasks here yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Done Column -->
+                <div class="bg-gray-50 rounded-lg shadow overflow-hidden">
+                    <div class="bg-green-50 px-4 py-3 border-b border-green-200">
+                        <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                            <span class="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                            Done
+                            <span id="doneCount" class="ml-auto bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">0</span>
+                        </h3>
+                    </div>
+                    <div id="doneTasks" class="drop-zone p-4 min-h-[200px]" data-status="done">
+                        <div class="text-center text-gray-500 py-8" id="emptyDone">
+                            <i class="fas fa-check-circle text-3xl mb-2"></i>
+                            <p>No tasks here yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // DOM Elements
+        const authModal = document.getElementById('authModal');
+        const authModalTitle = document.getElementById('authModalTitle');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const showRegister = document.getElementById('showRegister');
+        const showLogin = document.getElementById('showLogin');
+        const closeAuthModal = document.getElementById('closeAuthModal');
+        const loginButton = document.getElementById('loginButton');
+        const registerButton = document.getElementById('registerButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const userMenuButton = document.getElementById('userMenuButton');
+        const userMenu = document.getElementById('userMenu');
+        const authButtons = document.getElementById('authButtons');
+        const userActions = document.getElementById('userActions');
+        
+        const taskModal = document.getElementById('taskModal');
+        const taskModalTitle = document.getElementById('taskModalTitle');
+        const taskForm = document.getElementById('taskForm');
+        const addTaskButton = document.getElementById('addTaskButton');
+        const closeTaskModal = document.getElementById('closeTaskModal');
+        const cancelTask = document.getElementById('cancelTask');
+        
+        const filterButton = document.getElementById('filterButton');
+        const filterDropdown = document.getElementById('filterDropdown');
+        const statusFilters = document.querySelectorAll('.status-filter');
+        const priorityFilters = document.querySelectorAll('.priority-filter');
+        
+        // Task columns
+        const todoTasks = document.getElementById('todoTasks');
+        const inProgressTasksCol = document.getElementById('inProgressTasksCol');
+        const doneTasks = document.getElementById('doneTasks');
+        
+        // Stats elements
+        const totalTasksEl = document.getElementById('totalTasks');
+        const inProgressTasksEl = document.getElementById('inProgressTasks');
+        const completedTasksEl = document.getElementById('completedTasks');
+        const todoCount = document.getElementById('todoCount');
+        const inProgressCount = document.getElementById('inProgressCount');
+        const doneCount = document.getElementById('doneCount');
+        
+        // Empty state elements
+        const emptyTodo = document.getElementById('emptyTodo');
+        const emptyInProgress = document.getElementById('emptyInProgress');
+        const emptyDone = document.getElementById('emptyDone');
+        
+        // State
+        let currentUser = null;
+        let tasks = [];
+        let draggedTask = null;
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if user is logged in (in a real app, this would check session/cookies)
+            checkAuthStatus();
+            
+            // Load tasks from localStorage
+            loadTasks();
+            
+            // Update stats
+            updateStats();
+            
+            // Setup event listeners
+            setupEventListeners();
+        });
+        
+        function checkAuthStatus() {
+            // In a real app, this would check with the backend
+            const user = localStorage.getItem('currentUser');
+            if (user) {
+                currentUser = JSON.parse(user);
+                updateAuthUI(true);
+            } else {
+                updateAuthUI(false);
+            }
+        }
+        
+        function updateAuthUI(isAuthenticated) {
+            if (isAuthenticated) {
+                authButtons.classList.add('hidden');
+                userActions.classList.remove('hidden');
+                document.querySelector('#userMenuButton span').textContent = currentUser.name.split(' ')[0];
+            } else {
+                authButtons.classList.remove('hidden');
+                userActions.classList.add('hidden');
+                document.querySelector('#userMenuButton span').textContent = 'Guest';
+            }
+        }
+        
+        function loadTasks() {
+            // In a real app, this would fetch from a backend API
+            const storedTasks = localStorage.getItem('tasks');
+            if (storedTasks) {
+                tasks = JSON.parse(storedTasks);
+                renderTasks();
+            }
+        }
+        
+        function saveTasks() {
+            // In a real app, this would send to a backend API
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+            updateStats();
+        }
+        
+        function renderTasks() {
+            // Clear all columns first
+            todoTasks.innerHTML = '';
+            inProgressTasksCol.innerHTML = '';
+            doneTasks.innerHTML = '';
+            
+            // Add empty states back
+            todoTasks.appendChild(emptyTodo);
+            inProgressTasksCol.appendChild(emptyInProgress);
+            doneTasks.appendChild(emptyDone);
+            
+            // Filter tasks based on UI filters
+            const activeStatusFilters = Array.from(statusFilters)
+                .filter(filter => filter.checked)
+                .map(filter => filter.value);
+                
+            const activePriorityFilters = Array.from(priorityFilters)
+                .filter(filter => filter.checked)
+                .map(filter => filter.value);
+            
+            const filteredTasks = tasks.filter(task => 
+                activeStatusFilters.includes(task.status) && 
+                activePriorityFilters.includes(task.priority)
+            );
+            
+            // Count tasks for each status
+            let todoTaskCount = 0;
+            let inProgressTaskCount = 0;
+            let doneTaskCount = 0;
+            
+            filteredTasks.forEach(task => {
+                const taskElement = createTaskElement(task);
+                
+                if (task.status === 'todo') {
+                    todoTasks.appendChild(taskElement);
+                    todoTaskCount++;
+                    emptyTodo.classList.add('hidden');
+                } else if (task.status === 'in-progress') {
+                    inProgressTasksCol.appendChild(taskElement);
+                    inProgressTaskCount++;
+                    emptyInProgress.classList.add('hidden');
+                } else if (task.status === 'done') {
+                    doneTasks.appendChild(taskElement);
+                    doneTaskCount++;
+                    emptyDone.classList.add('hidden');
+                }
+            });
+            
+            // Update counters
+            todoCount.textContent = todoTaskCount;
+            inProgressCount.textContent = inProgressTaskCount;
+            doneCount.textContent = doneTaskCount;
+            
+            // Show empty states if no tasks
+            if (todoTaskCount === 0) emptyTodo.classList.remove('hidden');
+            if (inProgressTaskCount === 0) emptyInProgress.classList.remove('hidden');
+            if (doneTaskCount === 0) emptyDone.classList.remove('hidden');
+        }
+        
+        function createTaskElement(task) {
+            const taskElement = document.createElement('div');
+            taskElement.className = `task-card mb-3 bg-white rounded-md shadow p-4 cursor-move relative priority-${task.priority}`;
+            taskElement.draggable = true;
+            taskElement.dataset.taskId = task.id;
+            
+            // Priority indicator
+            let priorityColor = 'gray';
+            let priorityText = '';
+            if (task.priority === 'high') {
+                priorityColor = 'red';
+                priorityText = 'High';
+            } else if (task.priority === 'medium') {
+                priorityColor = 'yellow';
+                priorityText = 'Medium';
+            } else {
+                priorityColor = 'green';
+                priorityText = 'Low';
+            }
+            
+            // Due date formatting
+            let dueDateText = '';
+            if (task.dueDate) {
+                const dueDate = new Date(task.dueDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (dueDate < today && task.status !== 'done') {
+                    dueDateText = `<span class="text-xs font-medium text-red-600">Overdue: ${formatDate(task.dueDate)}</span>`;
+                } else {
+                    dueDateText = `<span class="text-xs font-medium text-gray-500">Due: ${formatDate(task.dueDate)}</span>`;
+                }
+            }
+            
+            // Labels
+            let labelsHtml = '';
+            if (task.labels && task.labels.length > 0) {
+                const labelColors = ['blue', 'purple', 'green', 'yellow', 'red', 'indigo'];
+                labelsHtml = task.labels.map((label, index) => {
+                    const color = labelColors[index % labelColors.length];
+                    return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-${color}-100 text-${color}-800">${label.trim()}</span>`;
+                }).join(' ');
+            }
+            
+            taskElement.innerHTML = `
+                <div class="flex justify-between items-start mb-1">
+                    <h3 class="font-medium text-gray-900">${task.title}</h3>
+                    <div class="flex space-x-2">
+                        <button class="edit-task text-gray-400 hover:text-blue-600" data-task-id="${task.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="delete-task text-gray-400 hover:text-red-600" data-task-id="${task.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                ${task.description ? `<p class="text-sm text-gray-600 mb-2">${task.description}</p>` : ''}
+                <div class="flex flex-wrap gap-1 mb-2">${labelsHtml}</div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-medium text-${priorityColor}-600">${priorityText} Priority</span>
+                    ${dueDateText}
+                </div>
+            `;
+            
+            // Add drag events
+            taskElement.addEventListener('dragstart', handleDragStart);
+            
+            // Add edit and delete event listeners
+            taskElement.querySelector('.edit-task').addEventListener('click', (e) => {
+                e.stopPropagation();
+                editTask(task.id);
+            });
+            
+            taskElement.querySelector('.delete-task').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteTask(task.id);
+            });
+            
+            return taskElement;
+        }
+        
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+        
+        function updateStats() {
+            const total = tasks.length;
+            const inProgress = tasks.filter(task => task.status === 'in-progress').length;
+            const done = tasks.filter(task => task.status === 'done').length;
+            
+            totalTasksEl.textContent = total;
+            inProgressTasksEl.textContent = inProgress;
+            completedTasksEl.textContent = done;
+        }
+        
+        function setupEventListeners() {
+            // Auth modal
+            loginButton.addEventListener('click', () => {
+                authModalTitle.textContent = 'Login';
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                authModal.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+            });
+            
+            registerButton.addEventListener('click', () => {
+                authModalTitle.textContent = 'Register';
+                registerForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+                authModal.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+            });
+            
+            showRegister.addEventListener('click', () => {
+                authModalTitle.textContent = 'Register';
+                registerForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            });
+            
+            showLogin.addEventListener('click', () => {
+                authModalTitle.textContent = 'Login';
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            });
+            
+            closeAuthModal.addEventListener('click', () => {
+                authModal.classList.add('hidden');
+            });
+            
+            // Login form
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+                
+                // In a real app, this would validate with backend
+                if (email && password) {
+                    currentUser = {
+                        id: Date.now().toString(),
+                        name: 'Demo User',
+                        email: email
+                    };
+                    
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateAuthUI(true);
+                    authModal.classList.add('hidden');
+                    loginForm.reset();
+                    
+                    // Show welcome message
+                    alert(`Welcome back, ${currentUser.name}!`);
+                } else {
+                    alert('Please enter both email and password');
+                }
+            });
+            
+            // Register form
+            registerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('registerName').value;
+                const email = document.getElementById('registerEmail').value;
+                const password = document.getElementById('registerPassword').value;
+                const confirmPassword = document.getElementById('registerConfirmPassword').value;
+                
+                // Simple validation
+                if (!name || !email || !password || !confirmPassword) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+                
+                if (password !== confirmPassword) {
+                    alert('Passwords do not match');
+                    return;
+                }
+                
+                // In a real app, this would register with backend
+                currentUser = {
+                    id: Date.now().toString(),
+                    name: name,
+                    email: email
+                };
+                
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                updateAuthUI(true);
+                authModal.classList.add('hidden');
+                registerForm.reset();
+                
+                // Show welcome message
+                alert(`Welcome to TaskFlow, ${currentUser.name}!`);
+            });
+            
+            // Logout
+            logoutButton.addEventListener('click', () => {
+                currentUser = null;
+                localStorage.removeItem('currentUser');
+                updateAuthUI(false);
+                userMenu.classList.add('hidden');
+                alert('You have been logged out');
+            });
+            
+            // User menu
+            userMenuButton.addEventListener('click', () => {
+                userMenu.classList.toggle('hidden');
+            });
+            
+            // Close menus when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) {
+                    userMenu.classList.add('hidden');
+                }
+                
+                if (!filterButton.contains(e.target) && !filterDropdown.contains(e.target)) {
+                    filterDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Task modal
+            addTaskButton.addEventListener('click', () => {
+                if (!currentUser) {
+                    alert('Please login to add tasks');
+                    authModal.classList.remove('hidden');
+                    return;
+                }
+                
+                taskModalTitle.textContent = 'Add New Task';
+                document.getElementById('taskId').value = '';
+                taskForm.reset();
+                taskModal.classList.remove('hidden');
+            });
+            
+            closeTaskModal.addEventListener('click', () => {
+                taskModal.classList.add('hidden');
+            });
+            
+            cancelTask.addEventListener('click', () => {
+                taskModal.classList.add('hidden');
+            });
+            
+            // Task form
+            taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const id = document.getElementById('taskId').value;
+                const title = document.getElementById('taskTitle').value;
+                const description = document.getElementById('taskDescription').value;
+                const priority = document.getElementById('taskPriority').value;
+                const dueDate = document.getElementById('taskDueDate').value;
+                const status = document.getElementById('taskStatus').value;
+                const labelsInput = document.getElementById('taskLabels').value;
+                
+                const labels = labelsInput ? labelsInput.split(',').map(label => label.trim()) : [];
+                
+                if (id) {
+                    // Update existing task
+                    const taskIndex = tasks.findIndex(task => task.id === id);
+                    if (taskIndex !== -1) {
+                        tasks[taskIndex] = {
+                            ...tasks[taskIndex],
+                            title,
+                            description,
+                            priority,
+                            dueDate,
+                            status,
+                            labels
+                        };
+                    }
+                } else {
+                    // Add new task
+                    const newTask = {
+                        id: Date.now().toString(),
+                        title,
+                        description,
+                        priority,
+                        dueDate,
+                        status,
+                        labels,
+                        createdAt: new Date().toISOString(),
+                        userId: currentUser.id
+                    };
+                    
+                    tasks.push(newTask);
+                }
+                
+                saveTasks();
+                taskModal.classList.add('hidden');
+            });
+            
+            // Filter dropdown
+            filterButton.addEventListener('click', () => {
+                filterDropdown.classList.toggle('hidden');
+            });
+            
+            // Status and priority filters
+            statusFilters.forEach(filter => {
+                filter.addEventListener('change', renderTasks);
+            });
+            
+            priorityFilters.forEach(filter => {
+                filter.addEventListener('change', renderTasks);
+            });
+            
+            // Drag and drop setup
+            const dropZones = document.querySelectorAll('.drop-zone');
+            
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('dragenter', handleDragEnter);
+                zone.addEventListener('dragleave', handleDragLeave);
+                zone.addEventListener('drop', handleDrop);
+            });
+        }
+        
+        function editTask(taskId) {
+            if (!currentUser) {
+                alert('Please login to edit tasks');
+                authModal.classList.remove('hidden');
+                return;
+            }
+            
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                taskModalTitle.textContent = 'Edit Task';
+                document.getElementById('taskId').value = task.id;
+                document.getElementById('taskTitle').value = task.title;
+                document.getElementById('taskDescription').value = task.description || '';
+                document.getElementById('taskPriority').value = task.priority;
+                document.getElementById('taskDueDate').value = task.dueDate || '';
+                document.getElementById('taskStatus').value = task.status;
+                document.getElementById('taskLabels').value = task.labels ? task.labels.join(', ') : '';
+                
+                taskModal.classList.remove('hidden');
+            }
+        }
+        
+        function deleteTask(taskId) {
+            if (!currentUser) {
+                alert('Please login to delete tasks');
+                authModal.classList.remove('hidden');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to delete this task?')) {
+                tasks = tasks.filter(task => task.id !== taskId);
+                saveTasks();
+            }
+        }
+        
+        // Drag and drop handlers
+        function handleDragStart(e) {
+            draggedTask = e.target;
+            e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+            e.target.classList.add('opacity-50');
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+        
+        function handleDragEnter(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('active');
+        }
+        
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('active');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('active');
+            
+            const taskId = e.dataTransfer.getData('text/plain');
+            const newStatus = e.currentTarget.dataset.status;
+            
+            const taskIndex = tasks.findIndex(task => task.id === taskId);
+            if (taskIndex !== -1) {
+                tasks[taskIndex].status = newStatus;
+                saveTasks();
+            }
+        }
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=ezro39/niha" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
